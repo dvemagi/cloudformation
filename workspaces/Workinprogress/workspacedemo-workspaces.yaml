@@ -1,0 +1,26 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: |
+  Template per la creazione di AWS Workspaces Demo
+
+
+  
+Resources:
+  Workspaces:
+    Type: "AWS::WorkSpaces::Workspace"
+    Properties:
+      BundleId: wsb-bh8rsxt14
+      DirectoryId: d-93671d3e65
+      UserName: Admin
+      
+  # Outputs
+Outputs:
+  StackName:
+    Description: This is the stack name.
+    Value:
+      Ref: AWS::StackName
+  WorkspaceID:
+    Description: ID del workspace
+    Value: ID
+
+  

@@ -1,0 +1,168 @@
+Description: Template di preparazione network di Ansible demo
+
+Parameters:
+  EnvironmentTag:
+    Description: Inserisci il tag della struttura
+    Type: String
+    
+    
+  CIDRPrefix:
+    Description: 'Inserisci la classe B del prefisso  (e.g. 192.168, 10.1, 172.16)'
+    Type: String
+
+Resources:
+# Creazione VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock:
+        Fn::Join:
+        - ''
+        - - Ref: CIDRPrefix
+          - ".0.0/21"
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - ''
+          - - Ref: EnvironmentTag
+            - "-vpc"
+
+# Creazione Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - ''
+          - - Ref: EnvironmentTag
+            - "-igw"
+  AttachInternetGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: VPC
+      InternetGatewayId:
+        Ref: InternetGateway
+  
+# Creazione Subnet Pubbliche  
+  PublicSubnet0:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - '0'
+        - Fn::GetAZs: ''
+      CidrBlock:
+        Fn::Join:
+        - ''
+        - - Ref: CIDRPrefix
+          - ".0.0/24"
+      MapPublicIpOnLaunch: true
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - ''
+          - - Ref: EnvironmentTag
+            - "-pub-0"
+ 
+  
+  # Creazione routing table pubblica
+  PublicRoutingTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - ''
+          - - Ref: EnvironmentTag
+            - "-route-pub"
+  PublicRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: InternetGateway
+      RouteTableId:
+        Ref: PublicRoutingTable
+  PublicRouteAssociation0:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PublicRoutingTable
+      SubnetId:
+        Ref: PublicSubnet0
+
+  
+ 
+
+# Security Group
+  MGMSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName:
+        Fn::Join:
+        - ''
+        - - Ref: EnvironmentTag
+          - "-mgm-sg"
+      GroupDescription: Regola per accesso ssh 
+      VpcId:
+        Ref: VPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '22'
+        ToPort: '22'
+        CidrIp: 0.0.0.0/0
+        Description: SSH from Any
+
+      
+# Outputs
+Outputs:
+  StackName:
+    Description: This is the stack name.
+    Value:
+      Ref: AWS::StackName
+  VPCCIDRBlock:
+    Description: This is the VPC CIDR Block.
+    Value:
+      Fn::Join:
+      - ''
+      - - Ref: CIDRPrefix
+        - ".0.0/21"
+  VPCCIDRPrefix:
+    Description: This is the VPC CIDR Prefix For Offsetting in your chained stacks.
+    Value:
+      Ref: CIDRPrefix
+  EnvTag:
+    Description: This is the environment tag to use for other stacks to inherit.
+    Value:
+      Ref: EnvironmentTag
+  PublicSubnet0:
+    Description: Public subnet 0 
+    Value:
+      Ref: PublicSubnet0
+
+  PublicCIDRRange:
+    Description: This is the Application CIDR Range.
+    Value:
+      Fn::Join:
+      - ''
+      - - Ref: CIDRPrefix
+        - ".0.0/23"
+
+  VPCID:
+    Description: This is the VPC you have created
+    Value:
+      Ref: VPC
+  MGMSecurityGroup:
+    Description: The security group for master and data nodes
+    Value:
+      Ref: MGMSecurityGroup

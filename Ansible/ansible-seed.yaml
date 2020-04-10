@@ -1,0 +1,198 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Metadata:
+  License: Apache-2.0
+
+Description: > 
+  Cloudformation per la creazione di una istanza di seed che genera 
+  ruolo ed istanza ec2 installa Ansible ed i pacchetti necessari
+Parameters:
+  EnvironmentTag:
+    Description: Inserisci il tag della struttura
+    Type: String
+  KeyName:
+    Description: Scegli un keypair esistente
+    Type: String
+  PublicSubnet0:
+    Description: Subnet pubblica 0
+    Type: String
+  VPCID:
+    Description: VPC Id
+    Type: String
+  LatestAmiId:
+    Type:  'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+  
+Resources:
+# Creazione dell'istanza di seed
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          EnableRun:
+            - 'Enable'
+            - 'Run'
+        Enable: 
+          commands:  
+            10_enable_ansible:
+              command:
+                  'Fn::Join':
+                      - ''
+                      - - 'sudo amazon-linux-extras enable ansible2'
+                        - |+
+
+              ignoreErrors: true
+              cwd: "~"   
+        Run:
+          packages:
+            yum:
+              httpd: []
+              amazon-linux-extras: []
+              ansible: []
+          commands:
+            10_update_system:
+              command:
+                'Fn::Join':
+                    - ''
+                    - - 'yum update -y'
+                      - |+
+
+                ignoreErrors: true 
+                     
+    Properties:
+      InstanceType: t3.micro
+      KeyName: !Ref 'KeyName'
+      ImageId: !Ref LatestAmiId
+      NetworkInterfaces: 
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          SubnetId: !Ref PublicSubnet0
+          GroupSet:
+            - !Ref InstanceSecurityGroup
+      IamInstanceProfile: !Ref WKSInstanceProfile
+      Tags:
+        - Key: Name
+          Value: !Sub ${EnvironmentTag}-seed
+      UserData: !Base64 
+        'Fn::Join':
+          - ''
+          - - |
+              #!/bin/bash -xe 
+            - |
+              # Install the files and packages from the metadata
+            - '/opt/aws/bin/cfn-init -v --stack '
+            - !Ref 'AWS::StackName'
+            - ' --resource EC2Instance --region '
+            - !Ref 'AWS::Region'
+            - ' --configsets EnableRun'
+            - |+
+      
+
+      
+#Creazione di un security group per l'istanza di seed
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupName: seed-sg
+      GroupDescription: abilita SSH da anywhere
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: '0.0.0.0/0'
+
+  
+# Creazione del Ruolo e policy 
+  WKSRole: 
+    Type: "AWS::IAM::Role"
+    Properties: 
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "ec2.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      RoleName: !Sub ${EnvironmentTag}-role
+  WKSPolicy:
+    Type: AWS::IAM::Policy
+    Properties: 
+      PolicyDocument: |
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "workspaces:*",
+                "ds:*",
+                "iam:PassRole",
+                "iam:GetRole",
+                "iam:CreateRole",
+                "iam:PutRolePolicy",
+                "kms:ListAliases",
+                "kms:ListKeys",
+                "ec2:CreateVpc",
+                "ec2:CreateSubnet",
+                "ec2:CreateNetworkInterface",
+                "ec2:CreateInternetGateway",
+                "ec2:CreateRouteTable",
+                "ec2:CreateRoute",
+                "ec2:CreateTags",
+                "ec2:CreateSecurityGroup",
+                "ec2:DescribeInternetGateways",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeRouteTables",
+                "ec2:DescribeVpcs",
+                "ec2:DescribeSubnets",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DescribeAvailabilityZones",
+                "ec2:AttachInternetGateway",
+                "ec2:AssociateRouteTable",
+                "ec2:AuthorizeSecurityGroupEgress",
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:DeleteSecurityGroup",
+                "ec2:DeleteNetworkInterface",
+                "ec2:RevokeSecurityGroupEgress",
+                "ec2:RevokeSecurityGroupIngress",
+                "workdocs:CreateUser",
+                "workdocs:RegisterDirectory",
+                "workdocs:DeregisterDirectory",
+                "workdocs:AddUserToGroup",
+                "workdocs:RemoveUserFromGroup"
+              ],
+              "Resource": "*"
+              }
+              ]
+             }
+      Roles: 
+        - !Ref WKSRole
+      PolicyName: !Sub ${EnvironmentTag}-pol
+
+  WKSInstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Roles:
+        - !Ref WKSRole
+
+
+Outputs:
+  StackName:
+    Description: This is the stack name.
+    Value:
+      Ref: AWS::StackName
+  InstanceId:
+    Description: InstanceId of the newly created EC2 instance
+    Value: !Ref 'EC2Instance'
+  WKSPolicy:
+    Description: Policy per workspaces
+    Value: !Ref WKSPolicy
+  PublicIp:
+    Description: Instace Public IP 
+    Value: !GetAtt EC2Instance.PublicIp
+ 
+  

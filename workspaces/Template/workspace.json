@@ -1,0 +1,21 @@
+{
+    "Workspaces": [
+        {
+            "WorkspaceId": "ws-10l34g856",
+            "DirectoryId": "d-93671d3e65",
+            "UserName": "Admin",
+            "IpAddress": "172.31.3.231",
+            "State": "AVAILABLE",
+            "BundleId": "wsb-bh8rsxt14",
+            "SubnetId": "subnet-07fe5022217121408",
+            "ComputerName": "IP-C0A8AEA5",
+            "WorkspaceProperties": {
+                "RunningMode": "ALWAYS_ON",
+                "RootVolumeSizeGib": 80,
+                "UserVolumeSizeGib": 10,
+                "ComputeTypeName": "VALUE"
+            },
+            "ModificationStates": []
+        }
+    ]
+}

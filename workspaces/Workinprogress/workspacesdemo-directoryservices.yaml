@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Metadata:
+  License: Apache-2.0
+
+Description: Provision AWS Managed Active Directory
+
+Parameters:
+  EnvironmentTag:
+    Description: Inserisci il tag della struttura
+    Type: String
+
+  PrivateSubnet0:
+    Description: Subnet privata 0
+    Type: String
+  PrivateSubnet1:
+    Description: Subnet privata 1
+    Type: String
+  VPCID:
+    Description: VPC Id
+    Type: String
+ 
+  MicrosoftADPW:
+    Description: >
+      La Password dell'utente di amministrazione (Admin)
+    Type: String
+
+  
+
+Resources:
+  rMSDirectory:
+    Type: AWS::DirectoryService::MicrosoftAD
+    Properties:
+      CreateAlias: false
+      Edition: Standard
+      EnableSso: true
+      Name: !Sub ${EnvironmentTag}.example.com
+      Password: !Ref MicrosoftADPW
+      ShortName: !Ref EnvironmentTag
+      VpcSettings:
+        SubnetIds:
+        - !Ref PrivateSubnet0
+        - !Ref PrivateSubnet1
+        VpcId: 
+          !Ref VPCID
+
+
+Outputs:
+  StackName:
+    Description: This is the stack name.
+    Value:
+      Ref: AWS::StackName
+  DirectoryID:
+    Description: ID of the MS Directory
+    Value: !Ref rMSDirectory
+  PrimaryDNS:
+    Description: DNS IPs of the MS Directory
+    Value: !Select [ '0', !GetAtt rMSDirectory.DnsIpAddresses ]
+  SecondaryDNS:
+    Description: DNS IPs of the MSDirectory
+    Value: !Select [ '1', !GetAtt rMSDirectory.DnsIpAddresses ]
+  DirectoryAlias:
+    Description: URL for the alias
+    Value: !GetAtt rMSDirectory.Alias
+  

@@ -1,0 +1,8 @@
+registra la directory per il workspace
+aws --region eu-west-1 workspaces register-workspace-directory --directory-id d-93671d3e65 --subnet-ids subnet-02fda4c2aecb1f803 subnet-07fe5022217121408 --enable-work-docs
+
+crea un utente demo
+aws --region eu-west-1 workdocs create-user --organization-id d-93671d3e65 --username exampleUser2 --email-address exampleUser2@site.awsapps.com --given-name example2Name --surname example2Surname --password examplePa$$w0rd
+
+crea il workspace
+aws --region eu-west-1 workspaces create-workspaces --cli-input-json file://wks.json

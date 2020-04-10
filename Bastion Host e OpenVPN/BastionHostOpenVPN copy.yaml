@@ -1,0 +1,165 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Metadata:
+  License: Apache-2.0
+
+Description: | 
+  Cloudformation per la creazione di un bastion host con OpenVPN (con script openVPN manager)
+  Deploy di uno script per l'aggiornamento automatico di Route53 con ruolo 
+
+Parameters:
+  HostName:
+    Description: Inserisci Nome dell'host
+    Type: String
+  KeyName:
+    Description: Scegli un keypair esistente
+    Type: AWS::EC2::KeyPair::KeyName
+  VPCID:
+    Type: AWS::EC2::VPC::Id
+  PublicSubnet0:
+    Description: Subnet pubblica 0
+    Type: AWS::EC2::Subnet::Id
+  ZoneId:
+    Description: Inserisci l'ID della zona Route 53
+    Type: AWS::Route53::HostedZone::Id
+  FQDN:
+    Description: FQDN dell'host da inserire nel DNS
+    Type: String
+  LatestAmiId:
+    Type:  'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
+    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+  
+Resources:
+# Creazione dell'istanza di seed
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          files:
+            /var/lib/cloud/scripts/per-boot/dnschange:
+              source: https://ics-cf-templates.s3-eu-west-1.amazonaws.com/bastionhost/dnschange.sh
+              mode: 000666
+            /home/ec2-user/manage-openvpn.sh:
+              source: https://ics-cf-templates.s3-eu-west-1.amazonaws.com/bastionhost/manage-openvpn.sh
+              mode: 000611
+              owner: ec2-user
+        command:
+          10_install_manage_openvpn:
+            command:
+                'Fn::Join':
+                    - ''
+                    - - '/home/ec2-user/manage-openvpn -i'
+                      - |+
+
+                ignoreErrors: true 
+
+
+    Properties:
+      InstanceType: t3.micro
+      KeyName: !Ref 'KeyName'
+      ImageId: ami-00890f614e48ce866
+      NetworkInterfaces: 
+        - AssociatePublicIpAddress: "true"
+          DeviceIndex: "0"
+          SubnetId: !Ref PublicSubnet0
+          GroupSet:
+            - !Ref InstanceSecurityGroup
+      IamInstanceProfile: !Ref WKSInstanceProfile
+      Tags:
+        - Key: Name
+          Value: !Ref HostName
+        - Key: AUTO_DNS_NAME
+          Value: !Ref HostName
+        - Key: AUTO_DNS_ZONE
+          Value: !Ref ZoneId
+      UserData: !Base64 
+        'Fn::Join':
+          - ''
+          - - |
+              #!/bin/bash -xe 
+            - |
+              # Install the files and packages from the metadata
+            - '/opt/aws/bin/cfn-init -v --stack '
+            - !Ref 'AWS::StackName'
+            - ' --resource EC2Instance --region '
+            - !Ref 'AWS::Region'
+            - |+
+      
+#Creazione di un security group per l'istanza di seed
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupName: bastionhost-sg
+      GroupDescription: abilita SSH da anywhere
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: '0.0.0.0/0'
+      - IpProtocol: tcp
+        FromPort: 1194
+        ToPort: 1194
+        CidrIp: '0.0.0.0/0'
+
+# Creazione del Ruolo e policy 
+  BastionRole: 
+    Type: "AWS::IAM::Role"
+    Properties: 
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "ec2.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      RoleName: bastion-role
+  BastionPolicy:
+    Type: AWS::IAM::Policy
+    Properties: 
+      PolicyDocument: !Sub | 
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+            "Effect": "Allow",
+            "Action": "ec2:DescribeTags",
+            "Resource": "*"
+            },
+            { 
+            "Effect": "Allow",
+            "Action": "route53:ChangeResourceRecordSets",
+            "Resource": "arn:aws:route53:::hostedzone/${ZoneId}"
+              }
+            ]
+          }
+
+      Roles: 
+        - !Ref BastionRole
+      PolicyName: BastionPolicy
+
+  WKSInstanceProfile:
+    Type: 'AWS::IAM::InstanceProfile'
+    Properties:
+      Roles:
+        - !Ref BastionRole
+
+Outputs:
+  StackName:
+    Description: This is the stack name.
+    Value:
+      Ref: AWS::StackName
+  InstanceId:
+    Description: InstanceId dell'istanza appena creata
+    Value: !Ref 'EC2Instance'
+  BastionPolicy:
+    Description: Policy per workspaces
+    Value: !Ref BastionPolicy
+  PublicIp:
+    Description: Instace Public IP 
+    Value: !GetAtt EC2Instance.PublicIp
+ 
+  
