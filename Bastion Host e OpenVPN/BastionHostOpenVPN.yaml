@@ -39,11 +39,11 @@ Resources:
             /home/ec2-user/dnschange.sh:
               source: 'https://ics-cf-templates.s3-eu-west-1.amazonaws.com/bastionhost/dnschange.sh'
               mode: 000644
+              owner: 'ec2-user'
             /home/ec2-user/manage-openvpn.sh:
               source: 'https://ics-cf-templates.s3-eu-west-1.amazonaws.com/bastionhost/manage-openvpn.sh'
               mode: 000644
               owner: 'ec2-user'
-
 
     Properties:
       InstanceType: t3.micro
