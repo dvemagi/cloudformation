@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template Cloudformation per la creazione di una demo di Ansible e AWX
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: Configurazione Base
+      Parameters:
+      - EnvironmentTag
+      - KeyName
+    - Label:
+        default: VPC Networking Settings
+      Parameters:
+      - CIDRPrefix
+  
+Parameters:
+  EnvironmentTag:
+    Description: Inserisce il tag della struttura
+    Type: String
+    MinLength: 3
+    MaxLength: 15
+    AllowedPattern: '^[a-z][-a-z0-9]*$'
+    Default: ansibledemo
+  CIDRPrefix:
+    Description: 'Inserisci la classe B del prefisso  (e.g. 192.168, 10.1, 172.16)'
+    Type: String
+    AllowedPattern: '(192\.168)|10\.[0-9][0-9]{0,1}|(172\.([1][6-9]|[2][0-9]|[3][0-1]))'
+    ConstraintDescription: >-
+      Dovrà essere una classe privata legale 192.168 or 10.{0-99} or
+      172. {16-31}
+    Default: '172.31'
+  KeyName:
+    Description: Scegli un keypair esistente
+    Type: AWS::EC2::KeyPair::KeyName
+    ConstraintDescription: scegliere un keypair tra quelli esistenti
+  
+Resources:
+  Network:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      TemplateURL: 'https://ics-cf-templates.s3-eu-west-1.amazonaws.com/ansibledemo/ansible-network.yaml'
+      Parameters:
+        EnvironmentTag: !Ref EnvironmentTag
+        CIDRPrefix: !Ref CIDRPrefix
+  
+
+  Seed:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      TemplateURL: 'https://ics-cf-templates.s3-eu-west-1.amazonaws.com/ansibledemo/ansible-seed.yaml'
+      Parameters:
+        PublicSubnet0:
+                    'Fn::GetAtt':
+                        - Network
+                        - Outputs.PublicSubnet0
+        VPCID:
+                    'Fn::GetAtt':
+                        - Network
+                        - Outputs.VPCID
+        EnvironmentTag: !Ref EnvironmentTag
+        KeyName: !Ref KeyName
+  
+  
+Outputs:
+  
+  NetworkStack:
+    Description: Network stack name
+    Value: !GetAtt 
+      - Network
+      - Outputs.StackName
+
+  
+  SeedStack:
+    Description: Seed Stack 
+    Value: !GetAtt 
+      - Seed 
+      - Outputs.StackName
