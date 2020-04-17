@@ -3,7 +3,7 @@ Metadata:
   License: Apache-2.0
 
 Description: | 
-  Cloudformation per la creazione di un bastion host con OpenVPN (con script openVPN manager)
+  Cloudformation per la creazione di un bastion host 
   Deploy di uno script per l'aggiornamento automatico di Route53 con ruolo 
 
 Parameters:
@@ -29,35 +29,22 @@ Parameters:
     Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
   
 Resources:
-# Creazione dell'istanza di seed
+# Creazione dell'istanza di bastion host
   EC2Instance:
     Type: AWS::EC2::Instance
     Metadata:
       AWS::CloudFormation::Init:
         config:
           files:
-            /var/lib/cloud/scripts/per-boot/dnschange:
-              source: https://ics-cf-templates.s3-eu-west-1.amazonaws.com/bastionhost/dnschange.sh
-              mode: 000666
-            /home/ec2-user/manage-openvpn.sh:
-              source: https://ics-cf-templates.s3-eu-west-1.amazonaws.com/bastionhost/manage-openvpn.sh
-              mode: 000611
-              owner: ec2-user
-        command:
-          10_install_manage_openvpn:
-            command:
-                'Fn::Join':
-                    - ''
-                    - - '/home/ec2-user/manage-openvpn -i'
-                      - |+
-
-                ignoreErrors: true 
-
+            /var/lib/cloud/scripts/per-boot/dnschange.sh:
+              source: 'https://ics-cf-templates.s3-eu-west-1.amazonaws.com/bastionhost/dnschange.sh'
+              mode: 000777
+              owner: 'ec2-user'
 
     Properties:
       InstanceType: t3.micro
       KeyName: !Ref 'KeyName'
-      ImageId: ami-00890f614e48ce866
+      ImageId: !Ref LatestAmiId
       NetworkInterfaces: 
         - AssociatePublicIpAddress: "true"
           DeviceIndex: "0"
@@ -69,7 +56,7 @@ Resources:
         - Key: Name
           Value: !Ref HostName
         - Key: AUTO_DNS_NAME
-          Value: !Ref HostName
+          Value: !Ref FQDN
         - Key: AUTO_DNS_ZONE
           Value: !Ref ZoneId
       UserData: !Base64 
@@ -96,10 +83,6 @@ Resources:
       - IpProtocol: tcp
         FromPort: 22
         ToPort: 22
-        CidrIp: '0.0.0.0/0'
-      - IpProtocol: tcp
-        FromPort: 1194
-        ToPort: 1194
         CidrIp: '0.0.0.0/0'
 
 # Creazione del Ruolo e policy 

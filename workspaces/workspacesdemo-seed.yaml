@@ -40,7 +40,7 @@ Resources:
             yum:
               httpd: [] 
           files:
-            /home/ec2-user/wks.json:
+            /home/ec2-user/wks01.json:
               content: !Sub |
                     {
                         "Workspaces" : [
@@ -55,6 +55,21 @@ Resources:
                                         }
                                        ]
                        }
+            /home/ec2-user/wks02.json:
+              content: !Sub |
+                    {
+                        "Workspaces" : [
+                                          {
+                                          "DirectoryId" : "${Directory}",
+                                          "UserName" : "demo02",
+                                          "BundleId" : "wsb-clj85qzj1",
+                                          "WorkspaceProperties": {
+                                              "RunningMode": "AUTO_STOP", 
+                                              "RunningModeAutoStopTimeoutInMinutes": 60 
+                                               }  
+                                        }
+                                       ]
+                       }            
 
           commands:
             10_register_dir:
@@ -83,7 +98,7 @@ Resources:
 
               ignoreErrors: true 
 
-            20_create_user:
+            20_create_user_01:
               command:
                 'Fn::Join':
                       - ''
@@ -96,14 +111,38 @@ Resources:
                         - |+
 
               ignoreErrors: true
-
-            30_create_workspace:
+            
+            25_create_user_02:
               command:
                 'Fn::Join':
                       - ''
                       - - 'aws --region '
                         - !Ref 'AWS::Region' 
-                        - ' workspaces create-workspaces --cli-input-json file:///home/ec2-user/wks.json '
+                        - ' workdocs create-user --organization-id '
+                        - !Ref Directory  
+                        - ' --username demo02 --email-address demo02@site.awsapps.com --given-name demo02 --surname icsdemo '
+                        - '--password DemoPassword0'
+                        - |+
+
+              ignoreErrors: true
+
+            30_create_workspace_01:
+              command:
+                'Fn::Join':
+                      - ''
+                      - - 'aws --region '
+                        - !Ref 'AWS::Region' 
+                        - ' workspaces create-workspaces --cli-input-json file:///home/ec2-user/wks01.json '
+                        - |+
+
+              ignoreErrors: true
+            35_create_workspace_01:
+              command:
+                'Fn::Join':
+                      - ''
+                      - - 'aws --region '
+                        - !Ref 'AWS::Region' 
+                        - ' workspaces create-workspaces --cli-input-json file:///home/ec2-user/wks02.json '
                         - |+
 
               ignoreErrors: true
