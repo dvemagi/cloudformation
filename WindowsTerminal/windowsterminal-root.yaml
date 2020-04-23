@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
-Description: Template Cloudformation per la creazione di una demo di workspacea 
+Description: Template Cloudformation per la creazione di una demo per Windows Terminal
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -7,8 +7,8 @@ Metadata:
     - Label:
         default: Configurazione Base
       Parameters:
-      - EnvironmentTag
-      - pMicrosoftADPW
+      - EnvTag
+      - MicrosoftADPW
       - KeyName
     - Label:
         default: VPC Networking Settings
@@ -16,7 +16,7 @@ Metadata:
       - CIDRPrefix
   
 Parameters:
-  EnvironmentTag:
+  EnvTag:
     Description: Inserisce il tag della struttura
     Type: String
     MinLength: 3
@@ -30,7 +30,7 @@ Parameters:
     ConstraintDescription: >-
       Dovrà essere una classe privata legale 192.168 or 10.{0-99} or
       172. {16-31}
-    Default: '10.1'
+    Default: '172.31'
   MicrosoftADPW:
     Description: La Password dell'utente di amministrazione (Admin)
     Type: String
@@ -47,60 +47,32 @@ Resources:
   Network:
     Type: 'AWS::CloudFormation::Stack'
     Properties:
-      TemplateURL: 'https://ics-cf-templates.s3-eu-west-1.amazonaws.com/workspacesdemo/workspacesdemo-network.yaml'
+      TemplateURL: 'https://ics-cf-templates.s3-eu-west-1.amazonaws.com/windowsterminal/windowsterminal-network.yaml'
       Parameters:
-        EnvironmentTag: !Ref EnvironmentTag
+        EnvTag: !Ref EnvTag
         CIDRPrefix: !Ref CIDRPrefix
   
   DirectoryService:
     Type: 'AWS::CloudFormation::Stack'
     Properties:
-      TemplateURL: 'https://ics-cf-templates.s3-eu-west-1.amazonaws.com/workspacesdemo/workspacesdemo-directoryservices.yaml'
+      TemplateURL: 'https://ics-cf-templates.s3-eu-west-1.amazonaws.com/windowsterminal/windowsterminal-directoryservices.yaml'
       Parameters:
         PrivateSubnet0:
-                    'Fn::GetAtt':
-                        - Network
-                        - Outputs.PrivateSubnet0
-        PrivateSubnet1:
-                    'Fn::GetAtt':
-                        - Network
-                        - Outputs.PrivateSubnet1
-        VPCID:
-                    'Fn::GetAtt':
-                        - Network
-                        - Outputs.VPCID
-        EnvironmentTag: !Ref EnvironmentTag
-        MicrosoftADPW: !Ref MicrosoftADPW
-
-  Seed:
-    Type: 'AWS::CloudFormation::Stack'
-    Properties:
-      TemplateURL: 'https://ics-cf-templates.s3-eu-west-1.amazonaws.com/workspacesdemo/workspacesdemo-seed.yaml'
-      Parameters:
-        PrivateSubnet0:
-                    'Fn::GetAtt':
-                        - Network
-                        - Outputs.PrivateSubnet0
-        PrivateSubnet1:
-                    'Fn::GetAtt':
-                        - Network
-                        - Outputs.PrivateSubnet1
-        PublicSubnet0:
                     'Fn::GetAtt':
                         - Network
                         - Outputs.PublicSubnet0
+        PrivateSubnet1:
+                    'Fn::GetAtt':
+                        - Network
+                        - Outputs.PublicSubnet1
         VPCID:
                     'Fn::GetAtt':
                         - Network
                         - Outputs.VPCID
-        Directory:
-                    'Fn::GetAtt':
-                        - DirectoryService
-                        - Outputs.DirectoryID
-        EnvironmentTag: !Ref EnvironmentTag
-        KeyName: !Ref KeyName
+        EnvTag: !Ref EnvTag
+        MicrosoftADPW: !Ref MicrosoftADPW
   
-  
+
 Outputs:
   
   NetworkStack:
@@ -114,9 +86,4 @@ Outputs:
     Value: !GetAtt 
       - DirectoryService 
       - Outputs.StackName
-  
-  SeedStack:
-    Description: Seed Stack 
-    Value: !GetAtt 
-      - Seed 
-      - Outputs.StackName
+
