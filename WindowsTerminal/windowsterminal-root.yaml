@@ -57,11 +57,11 @@ Resources:
     Properties:
       TemplateURL: 'https://ics-cf-templates.s3-eu-west-1.amazonaws.com/windowsterminal/windowsterminal-directoryservices.yaml'
       Parameters:
-        PrivateSubnet0:
+        PublicSubnet0:
                     'Fn::GetAtt':
                         - Network
                         - Outputs.PublicSubnet0
-        PrivateSubnet1:
+        PublicSubnet1:
                     'Fn::GetAtt':
                         - Network
                         - Outputs.PublicSubnet1
